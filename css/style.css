@@ -1,0 +1,500 @@
+/* ============================================================
+   贪吃蛇游戏样式
+   设计目标：深色现代风 / 响应式布局 / 轻量动效
+   ============================================================ */
+
+/* ---------- 设计变量 ---------- */
+:root {
+  --bg-deep: #0a1120;
+  --bg-mid: #111c33;
+  --card-bg: rgba(255, 255, 255, 0.055);
+  --card-border: rgba(255, 255, 255, 0.09);
+  --text-main: #e6eefb;
+  --text-muted: #93a4bf;
+  --accent: #34d399;
+  --accent-deep: #059669;
+  --danger: #f87171;
+  --gold: #fbbf24;
+  --radius-lg: 18px;
+  --radius-md: 12px;
+  --shadow-card: 0 18px 50px rgba(0, 0, 0, 0.45);
+}
+
+/* ---------- 基础重置 ---------- */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  min-height: 100vh;
+  font-family: "PingFang SC", "Microsoft YaHei", "Segoe UI", system-ui,
+    -apple-system, sans-serif;
+  color: var(--text-main);
+  background:
+    radial-gradient(1100px 700px at 75% -10%, #1a2b4d 0%, transparent 60%),
+    radial-gradient(900px 600px at 0% 110%, #12352c 0%, transparent 55%),
+    var(--bg-deep);
+  background-attachment: fixed;
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+}
+
+button {
+  font-family: inherit;
+}
+
+/* ---------- 整体布局 ---------- */
+.app {
+  width: min(1020px, 100%);
+  margin: 0 auto;
+  padding: clamp(14px, 3vw, 28px);
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.logo {
+  margin: 0;
+  font-size: clamp(22px, 4vw, 30px);
+  font-weight: 800;
+  letter-spacing: 1px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.logo-icon {
+  display: inline-block;
+  animation: wiggle 2.6s ease-in-out infinite;
+  transform-origin: center;
+}
+
+@keyframes wiggle {
+  0%, 100% { transform: rotate(-6deg); }
+  50% { transform: rotate(8deg); }
+}
+
+.icon-btn {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  border: 1px solid var(--card-border);
+  background: var(--card-bg);
+  color: var(--text-main);
+  font-size: 19px;
+  cursor: pointer;
+  transition: transform 0.15s ease, background 0.2s ease;
+}
+
+.icon-btn:hover { background: rgba(255, 255, 255, 0.12); }
+.icon-btn:active { transform: scale(0.92); }
+
+/* 游戏区 + 侧边栏：宽屏双列，窄屏堆叠 */
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 290px;
+  gap: 20px;
+  align-items: start;
+}
+
+/* ---------- 游戏卡片 ---------- */
+.game-card {
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-lg);
+  padding: clamp(12px, 2.4vw, 20px);
+  box-shadow: var(--shadow-card);
+  backdrop-filter: blur(10px);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* ---------- HUD 分数区 ---------- */
+.hud {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
+.hud-item {
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: var(--radius-md);
+  padding: 8px 6px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.hud-label {
+  font-size: 12px;
+  color: var(--text-muted);
+  letter-spacing: 1px;
+}
+
+.hud-value {
+  font-size: clamp(18px, 3.6vw, 24px);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+}
+
+.hud-score .hud-value {
+  color: var(--accent);
+}
+
+/* 分数变化时的弹跳动画 */
+.hud-value.bump {
+  animation: score-bump 0.32s ease;
+}
+
+@keyframes score-bump {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.35); color: #a7f3d0; }
+  100% { transform: scale(1); }
+}
+
+/* ---------- 画布与遮罩 ---------- */
+.canvas-wrap {
+  position: relative;
+  width: 100%;
+  max-width: 520px;
+  margin: 0 auto;
+  aspect-ratio: 1 / 1;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow:
+    inset 0 0 0 1px rgba(0, 0, 0, 0.3),
+    0 10px 30px rgba(0, 0, 0, 0.35);
+  touch-action: none; /* 阻止触屏滑动时页面滚动 */
+  user-select: none;
+}
+
+#gameCanvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* 遮罩层（欢迎 / 暂停 / 结束） */
+.overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 18px;
+  background: rgba(7, 12, 24, 0.72);
+  backdrop-filter: blur(7px);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.28s ease, visibility 0.28s ease;
+  z-index: 5;
+}
+
+.overlay.active {
+  opacity: 1;
+  visibility: visible;
+}
+
+.overlay-card {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  transform: scale(0.92);
+  transition: transform 0.28s cubic-bezier(0.2, 0.9, 0.3, 1.2);
+  max-width: 340px;
+}
+
+.overlay.active .overlay-card {
+  transform: scale(1);
+}
+
+.overlay-emoji {
+  font-size: clamp(46px, 12vw, 64px);
+  line-height: 1;
+}
+
+.overlay-emoji.float {
+  animation: floaty 2.4s ease-in-out infinite;
+}
+
+@keyframes floaty {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+
+.overlay-title {
+  margin: 0;
+  font-size: clamp(20px, 5vw, 26px);
+  font-weight: 800;
+}
+
+.overlay-text {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+.overlay-hint {
+  margin: 2px 0 0;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+kbd {
+  display: inline-block;
+  min-width: 22px;
+  padding: 2px 6px;
+  margin: 0 2px;
+  font-size: 12px;
+  font-family: inherit;
+  color: var(--text-main);
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-bottom-width: 2px;
+  border-radius: 6px;
+}
+
+/* 新纪录徽章 */
+.record-badge {
+  background: linear-gradient(135deg, #f59e0b, #f97316);
+  color: #1f1300;
+  font-weight: 800;
+  font-size: 14px;
+  padding: 5px 14px;
+  border-radius: 999px;
+  animation: pulse-badge 1.2s ease-in-out infinite;
+}
+
+@keyframes pulse-badge {
+  0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(251, 191, 36, 0.5); }
+  50% { transform: scale(1.07); box-shadow: 0 0 0 8px rgba(251, 191, 36, 0); }
+}
+
+.hidden { display: none !important; }
+
+/* 结果数据 */
+.result-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  width: 100%;
+  margin-top: 4px;
+}
+
+.result-item {
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: var(--radius-md);
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.result-label {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.result-score {
+  font-size: 26px;
+  font-weight: 800;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+
+.result-meta {
+  display: flex;
+  gap: 18px;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.result-meta b {
+  color: var(--text-main);
+}
+
+/* ---------- 控制按钮 ---------- */
+.controls {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+}
+
+.btn {
+  border: none;
+  border-radius: var(--radius-md);
+  padding: 11px 22px;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.12s ease, filter 0.2s ease, opacity 0.2s ease;
+  color: #06281c;
+}
+
+.btn.lg {
+  padding: 13px 34px;
+  font-size: 16px;
+}
+
+.btn.primary {
+  background: linear-gradient(135deg, var(--accent), var(--accent-deep));
+  box-shadow: 0 8px 20px rgba(16, 185, 129, 0.3);
+}
+
+.btn.primary:hover { filter: brightness(1.08); }
+.btn.ghost {
+  background: transparent;
+  color: var(--text-main);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+}
+
+.btn.ghost:hover { background: rgba(255, 255, 255, 0.08); }
+.btn:active { transform: scale(0.95); }
+.btn:disabled {
+  opacity: 0.38;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+/* ---------- 虚拟方向键 ---------- */
+.dpad {
+  display: none;
+  width: 188px;
+  margin: 2px auto 0;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(3, 56px);
+  gap: 6px;
+}
+
+.dpad-btn {
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-main);
+  border-radius: 12px;
+  font-size: 16px;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.dpad-btn:active {
+  background: rgba(52, 211, 153, 0.35);
+  transform: scale(0.93);
+}
+
+.dpad .up { grid-column: 2; grid-row: 1; }
+.dpad .left { grid-column: 1; grid-row: 2; }
+.dpad .down { grid-column: 2; grid-row: 3; }
+.dpad .right { grid-column: 3; grid-row: 2; }
+
+/* 触屏设备或窄屏时显示虚拟方向键 */
+@media (pointer: coarse), (max-width: 820px) {
+  .dpad { display: grid; }
+}
+
+/* ---------- 侧边说明面板 ---------- */
+.side-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.panel {
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-lg);
+  padding: 16px 18px;
+  backdrop-filter: blur(10px);
+}
+
+.panel-title {
+  margin: 0 0 10px;
+  font-size: 16px;
+}
+
+.panel-list {
+  margin: 0;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  color: var(--text-muted);
+  font-size: 13.5px;
+  line-height: 1.6;
+}
+
+.panel-list b { color: var(--accent); }
+
+.key-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  list-style: none;
+  margin-left: -18px;
+}
+
+.key-list span:first-child {
+  white-space: nowrap;
+  min-width: 96px;
+}
+
+.footer {
+  text-align: center;
+  color: var(--text-muted);
+  padding-bottom: 8px;
+}
+
+/* ---------- 响应式：窄屏单列 ---------- */
+@media (max-width: 860px) {
+  .layout {
+    grid-template-columns: 1fr;
+  }
+
+  .side-panel {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+
+  .side-panel .panel {
+    flex: 1 1 280px;
+  }
+}
+
+@media (max-width: 420px) {
+  .app { padding: 12px; gap: 12px; }
+  .hud { gap: 6px; }
+  .hud-label { font-size: 11px; }
+  .btn { padding: 10px 16px; font-size: 14px; }
+}
+
+/* 尊重“减少动态效果”的系统偏好 */
+@media (prefers-reduced-motion: reduce) {
+  .logo-icon,
+  .overlay-emoji.float,
+  .record-badge {
+    animation: none;
+  }
+}

@@ -1,0 +1,8 @@
+# 系统与编辑器杂项文件
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+.DS_Store
+.vscode/
+.idea/
+*.log

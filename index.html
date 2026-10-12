@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="description" content="使用 HTML5 Canvas 与原生 JavaScript 实现的网页版贪吃蛇小游戏" />
+  <title>贪吃蛇 · Snake Game</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <div class="app">
+    <!-- 顶部标题栏 -->
+    <header class="topbar">
+      <h1 class="logo"><span class="logo-icon" aria-hidden="true">🐍</span>贪吃蛇</h1>
+      <button id="soundToggle" class="icon-btn" type="button" aria-label="切换音效" aria-pressed="true" title="音效开关">🔊</button>
+    </header>
+
+    <main class="layout">
+      <!-- 左侧：游戏主区域 -->
+      <section class="game-card" aria-label="游戏区域">
+        <!-- 分数显示区 -->
+        <div class="hud" role="status" aria-live="polite">
+          <div class="hud-item hud-score">
+            <span class="hud-label">当前分数</span>
+            <span id="scoreVal" class="hud-value">0</span>
+          </div>
+          <div class="hud-item">
+            <span class="hud-label">最高分</span>
+            <span id="bestVal" class="hud-value">0</span>
+          </div>
+          <div class="hud-item">
+            <span class="hud-label">等级</span>
+            <span id="levelVal" class="hud-value">1</span>
+          </div>
+          <div class="hud-item">
+            <span class="hud-label">长度</span>
+            <span id="lengthVal" class="hud-value">3</span>
+          </div>
+        </div>
+
+        <!-- 画布 + 遮罩层容器 -->
+        <div id="canvasWrap" class="canvas-wrap">
+          <canvas id="gameCanvas" aria-label="贪吃蛇游戏画布"></canvas>
+
+          <!-- 欢迎界面 -->
+          <div id="welcomeOverlay" class="overlay active">
+            <div class="overlay-card">
+              <div class="overlay-emoji float" aria-hidden="true">🐍</div>
+              <h2 class="overlay-title">欢迎来到贪吃蛇</h2>
+              <p class="overlay-text">控制小蛇吃到食物不断成长，<br />小心不要撞墙或咬到自己！</p>
+              <button id="welcomeStartBtn" class="btn primary lg" type="button">开始游戏</button>
+              <p class="overlay-hint">按 <kbd>空格</kbd> 或 <kbd>Enter</kbd> 也可开始</p>
+            </div>
+          </div>
+
+          <!-- 暂停界面 -->
+          <div id="pauseOverlay" class="overlay">
+            <div class="overlay-card">
+              <div class="overlay-emoji" aria-hidden="true">⏸️</div>
+              <h2 class="overlay-title">游戏暂停</h2>
+              <p class="overlay-text">休息一下，准备好了就继续吧</p>
+              <button id="pauseResumeBtn" class="btn primary lg" type="button">继续游戏</button>
+              <p class="overlay-hint">按 <kbd>空格</kbd> 继续</p>
+            </div>
+          </div>
+
+          <!-- 游戏结束 / 结果展示界面 -->
+          <div id="overOverlay" class="overlay">
+            <div class="overlay-card">
+              <div id="overEmoji" class="overlay-emoji" aria-hidden="true">💀</div>
+              <h2 id="overTitle" class="overlay-title">游戏结束</h2>
+              <div id="newRecordBadge" class="record-badge hidden">🏆 新纪录！</div>
+              <div class="result-grid">
+                <div class="result-item">
+                  <span class="result-label">本局得分</span>
+                  <span id="overScore" class="result-score">0</span>
+                </div>
+                <div class="result-item">
+                  <span class="result-label">历史最高</span>
+                  <span id="overBest" class="result-score">0</span>
+                </div>
+              </div>
+              <div class="result-meta">
+                <span>长度 <b id="overLength">3</b></span>
+                <span>等级 <b id="overLevel">1</b></span>
+              </div>
+              <button id="overRestartBtn" class="btn primary lg" type="button">再玩一次</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 控制按钮 -->
+        <div class="controls">
+          <button id="primaryBtn" class="btn primary" type="button">开始游戏</button>
+          <button id="restartBtn" class="btn ghost" type="button" disabled>重新开始</button>
+        </div>
+
+        <!-- 移动端虚拟方向键（触屏 / 小屏自动显示） -->
+        <div class="dpad" aria-label="方向控制">
+          <button class="dpad-btn up" type="button" data-dir="UP" aria-label="向上">▲</button>
+          <button class="dpad-btn left" type="button" data-dir="LEFT" aria-label="向左">◀</button>
+          <button class="dpad-btn down" type="button" data-dir="DOWN" aria-label="向下">▼</button>
+          <button class="dpad-btn right" type="button" data-dir="RIGHT" aria-label="向右">▶</button>
+        </div>
+      </section>
+
+      <!-- 右侧：规则与操作说明 -->
+      <aside class="side-panel">
+        <section class="panel">
+          <h2 class="panel-title">📖 游戏规则</h2>
+          <ul class="panel-list">
+            <li>控制蛇移动并吃到红色食物，每吃 <b>1</b> 个食物得 <b>10</b> 分，蛇身增长一节。</li>
+            <li>撞到边界墙壁或咬到自己的身体，游戏立即结束。</li>
+            <li>每累计吃 <b>5</b> 个食物提升 1 个等级，蛇的移动速度随之加快。</li>
+            <li>最高分会自动保存在本地浏览器中。</li>
+          </ul>
+        </section>
+
+        <section class="panel">
+          <h2 class="panel-title">🎮 操作说明</h2>
+          <ul class="panel-list key-list">
+            <li><span><kbd>↑</kbd><kbd>↓</kbd><kbd>←</kbd><kbd>→</kbd></span><span>控制移动方向</span></li>
+            <li><span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></span><span>同样可控制方向</span></li>
+            <li><span><kbd>空格</kbd> / <kbd>P</kbd></span><span>开始 / 暂停 / 继续</span></li>
+            <li><span><kbd>Enter</kbd></span><span>开始 / 重新开始</span></li>
+            <li><span>📱 滑动</span><span>触屏上滑动或点方向键</span></li>
+          </ul>
+        </section>
+      </aside>
+    </main>
+
+    <footer class="footer">
+      <small>HTML5 Canvas · 原生 JavaScript · 模块化实现</small>
+    </footer>
+  </div>
+
+  <!-- 按依赖顺序加载模块（经典脚本，双击 index.html 即可运行） -->
+  <script src="js/config.js"></script>
+  <script src="js/storage.js"></script>
+  <script src="js/audio.js"></script>
+  <script src="js/particles.js"></script>
+  <script src="js/snake.js"></script>
+  <script src="js/food.js"></script>
+  <script src="js/input.js"></script>
+  <script src="js/renderer.js"></script>
+  <script src="js/game.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>
