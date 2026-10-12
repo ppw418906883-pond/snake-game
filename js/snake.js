@@ -37,7 +37,8 @@
       this.prevBody = this.body.map(clonePoint);
       this.direction = clonePoint(NS.CONFIG.DIRECTIONS.RIGHT);
       this._queue = [];      // 待生效的方向队列
-      this._growPending = 0; // 已吃到、待在下一次移动时兑现的生长节数
+      this._growPending = 0; // 已吃到、待后续移动时兑现的生长节数（兜底）
+      this.lastPopped = null; // 本步刚移除的尾节（吃到食物时立即接回）
     },
 
     /**
@@ -71,18 +72,30 @@
       this.body.unshift(newHead);
 
       if (this._growPending > 0) {
-        // 生长：保留尾巴（身体变长一节）
+        // 兜底生长：保留尾巴（身体变长一节）
         this._growPending--;
+        this.lastPopped = null;
       } else {
-        // 普通移动：去掉尾巴
-        this.body.pop();
+        // 普通移动：去掉尾巴，并暂存该尾节；
+        // 若本步随后判定吃到食物，grow() 会把它立即接回，实现“当拍即变长”
+        this.lastPopped = this.body.pop();
       }
       return newHead;
     },
 
-    /** 通知蛇在下一次移动时生长 n 节 */
+    /**
+     * 通知蛇生长 n 节
+     * 优先把本步刚移除的尾节立即接回（吃食与长度增加在同一逻辑拍生效），
+     * 没有可接回的尾节时才顺延到后续移动。
+     */
     grow: function (n) {
-      this._growPending += n || 1;
+      n = n || 1;
+      if (this.lastPopped) {
+        this.body.push(this.lastPopped);
+        this.lastPopped = null;
+        n--;
+      }
+      if (n > 0) this._growPending += n;
     },
 
     /** 自身碰撞：蛇头是否与身体其余部分重叠 */
